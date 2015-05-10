@@ -1,69 +1,69 @@
 <?php
-class HomeController extends AppController
+/************************
+* Developed by Chris Love
+* Made in SoBe
+*/
+
+class PageController extends Controller
 {
-	public $uses = array();
-	
-	public function beforeFilter()
-	{
-		$this->Auth->allow('*');
-		$this->Auth->deny('index', 'view');
-		parent::beforeFilter();
-	}
 
-	public function index()
-	{
-		if ($this->Session->read('intro_video'))
-		{
-			switch (Configure::read('Config.language'))
-			{
-				case 'spa':
-				case 'es_es':
-					$this->set('video_url', '89673819');
-				break;
+    /**
+     * About us page
+     */
+    public function actionAboutUs() {
+    // the required data has been passed to the view directly
+    $this->pageTitle = 'Welcome to ... | Home';
+    $this->render('about-us', array(
+    'aboutus' => Page::model()->getAboutUs(),
+    ));
+    }
+    
+    public function actionSearch() {
+       $this->pageTitle = 'Search | Search query';
+        $this->render('search');    
+    }
 
-				default:
-					$this->set('video_url', '89673671');
-				break;
-			}
-		}
-	}
+    /**
+     * This is the action to handle external exceptions.
+     */
+    public function actionError() {
+        if ($error = Yii::app()->errorHandler->error) {
+            if (Yii::app()->request->isAjaxRequest)
+                echo $error['message'];
+            else
+                $this->render('error', $error);
+        }
+    }
 
-	public function feed()
-	{
-		$this->loadModel('Feed');
+    /**
+     * Displays the contact page
+     * @sitemap changefreq=yearly priority=0.3 lastmod=2012-08-15
+     */
+   public function actionContact() {
+        $model = new ContactForm;
+        if (isset($_POST['ContactForm'])) {
+            $model->attributes = $_POST['ContactForm'];
+            if ($model->validate()) {
+                $name = '=?UTF-8?B?' . base64_encode($model->name) . '?=';
+                $subject = '=?UTF-8?B?' . base64_encode($model->subject) . '?=';
+                $headers = "From: $name <{$model->email}>\r\n" .
+                        "Reply-To: {$model->email}\r\n" .
+                        "MIME-Version: 1.0\r\n" .
+                        "Content-type: text/plain; charset=UTF-8";
 
-		if (!empty($_GET['filter']))
-		{
-			$feeds = $this->paginate('Feed', array(
-				'Feed.feed_topic_id =' => $_GET['filter']
-			));
-		}
-		else
-		{
-			$feeds = $this->paginate('Feed');
-		}
+                mail(Yii::app()->params['adminEmail'], $subject, $model->body, $headers);
+                Yii::app()->user->setFlash('contact', 'Thank you for contacting us. We will respond to you as soon as possible.');
+                $this->refresh();
+            }
+        }
+        $this->render('contact', array('model' => $model));
+    }
 
-		$this->set('data', $feeds);
-		$this->render('/elements/json');
-	}
-
-	public function feed_topics()
-	{
-		$this->loadModel('Feed');
-		
-		$feedTopics = $this->Feed->FeedTopic->find('all');
-
-		$this->set('data', $feedTopics);
-		$this->render('/elements/json');
-	}
-	
-	public function view($slug = null) {
-		$this->loadModel('Feed');
-		if (!$slug) {
-			$this->Session->setFlash(__('Invalid feed', true));
-			$this->redirect(array('action' => 'index'));
-		}
-		$this->Feed->recursive = 1;
-		$this->set('feed', $this->Feed->findBySlug($slug));
-	}
+    //Log out and direct to home page
+    public function actionLogout() {
+        Yii::app()->user->logout();
+        $this->redirect(Yii::app()->createUrl('//site/index'));
+    }
+    
 }
+
